@@ -63,6 +63,33 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if session.get("username"):
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+        
+        if not username or not password:
+            flash("Username and password are required.", "error")
+        elif len(username) < 3:
+            flash("Username must be at least 3 characters.", "error")
+        elif len(password) < 6:
+            flash("Password must be at least 6 characters.", "error")
+        elif password != confirm_password:
+            flash("Passwords do not match.", "error")
+        elif db.register_user(username, password):
+            flash("Account created successfully! Please log in.", "success")
+            return redirect(url_for("login"))
+        else:
+            flash("Username already exists. Please choose another.", "error")
+
+    return render_template("register.html")
+
+
 @app.route("/logout")
 def logout():
     session.clear()

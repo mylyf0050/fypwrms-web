@@ -201,6 +201,29 @@ def change_password(username: str, new_password: str):
     conn.close()
 
 
+def register_user(username: str, password: str) -> bool:
+    """Register a new user. Returns True if successful, False if username exists."""
+    conn = get_connection()
+    try:
+        if DATABASE_URL:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO admins (username, password_hash) VALUES (%s, %s)",
+                (username, hash_password(password)),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO admins (username, password_hash) VALUES (?, ?)",
+                (username, hash_password(password)),
+            )
+            conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        conn.close()
+        return False
+
+
 # ---------- Supervisors ----------
 
 def add_supervisor(staff_id, full_name, department, phone, email):
