@@ -23,6 +23,9 @@ app.secret_key = os.environ.get("FYPWRMS_SECRET_KEY", "dev-secret-key-change-in-
 
 STATUS_OPTIONS = ["Ongoing", "Submitted", "Defended", "Graded"]
 
+# Initialize database on startup
+db.initialize_database()
+
 
 def login_required(view):
     @wraps(view)
@@ -280,7 +283,6 @@ def not_found(e):
 
 
 if __name__ == "__main__":
-    db.initialize_database()
     debug_mode = os.environ.get("FLASK_DEBUG", "True").lower() == "true"
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=debug_mode, host="0.0.0.0", port=port)
