@@ -142,23 +142,24 @@ def initialize_database():
     if not DATABASE_URL:
         conn.commit()
 
-    cur.execute("SELECT COUNT(*) AS c FROM admins")
-    result = cur.fetchone()
-    count = result["c"] if DATABASE_URL else result["c"]
-    
-    if count == 0:
-        if DATABASE_URL:
+    # Create default admin user if it doesn't exist
+    if DATABASE_URL:
+        try:
             cur.execute(
-                "INSERT INTO admins (username, password_hash) VALUES (%s, %s)",
+                "INSERT INTO admins (username, password_hash) VALUES (%s, %s) ON CONFLICT (username) DO NOTHING",
                 ("admin", hash_password("admin123")),
             )
-        else:
+        except Exception:
+            pass  # Admin user might already exist
+    else:
+        try:
             cur.execute(
-                "INSERT INTO admins (username, password_hash) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO admins (username, password_hash) VALUES (?, ?)",
                 ("admin", hash_password("admin123")),
             )
-        if not DATABASE_URL:
             conn.commit()
+        except Exception:
+            pass  # Admin user might already exist
 
     conn.close()
 
