@@ -144,24 +144,23 @@ def initialize_database():
     if not DATABASE_URL:
         conn.commit()
 
-    # Create default admin user if it doesn't exist
+    # Older installations created this table before accounts had roles.  Adding
+    # the column here upgrades those databases in place, so existing records and
+    # the administrator account are kept intact.
     if DATABASE_URL:
-        try:
-            cur.execute(
-                "INSERT INTO admins (username, password_hash, role) VALUES (%s, %s, %s) ON CONFLICT (username) DO NOTHING",
-                ("admin", hash_password("admin123"), "admin"),
-            )
-        except Exception:
-            pass  # Admin user might already exist
+        cur.execute(
+            "ALTER TABLE admins ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'"
+        )
+        # Ensure admin user has admin role (handle existing users)
+        cur.execute("UPDATE admins SET role = 'admin' WHERE username = %s", ("admin",))
     else:
-        try:
-            cur.execute(
-                "INSERT OR IGNORE INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
-                ("admin", hash_password("admin123"), "admin"),
-            )
-            conn.commit()
-        except Exception:
-            pass  # Admin user might already exist
+        # Add role column if it doesn't exist (for existing SQLite databases)
+        columns = {column[1] for column in cur.execute("PRAGMA table_info(admins)")}
+        if "role" not in columns:
+            cur.execute("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+        # Ensure admin user has admin role
+        cur.execute("UPDATE admins SET role = ? WHERE username = ?", ("admin", "admin"))
+        conn.commit()
 
     conn.close()
 
