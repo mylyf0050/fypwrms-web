@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FYPWRMS{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar__brand">
+        <div class="sidebar__brand-mark">FYPWRMS</div>
+        <div class="sidebar__brand-name">Final Year Project<br>Records Register</div>
+      </div>
+      <nav>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+        <a href="{{ url_for('students') }}" class="{{ 'active' if request.endpoint == 'students' }}">Students</a>
+        <a href="{{ url_for('supervisors') }}" class="{{ 'active' if request.endpoint == 'supervisors' }}">Supervisors</a>
+        <a href="{{ url_for('projects') }}" class="{{ 'active' if request.endpoint == 'projects' }}">Projects</a>
+        <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint == 'reports' }}">Reports</a>
+      </nav>
+      <div class="sidebar__footer">
+        <div class="sidebar__user">Signed in as<br><strong style="color:#fff">{{ current_user }}</strong></div>
+        <a href="{{ url_for('logout') }}" class="sidebar__logout">Log out</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash flash--{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

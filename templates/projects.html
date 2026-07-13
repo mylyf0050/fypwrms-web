@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Projects — FYPWRMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Projects</h1>
+    <p>Link a student to a supervisor and track the project through to grading.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>{{ 'Edit Project' if editing else 'Add a Project' }}</h2>
+  {% if not students %}
+    <p class="empty-state">Add at least one student before creating a project. <a href="{{ url_for('students') }}" style="color:var(--navy); font-weight:600;">Go to Students &rarr;</a></p>
+  {% else %}
+  <form method="POST" action="{{ url_for('projects') }}">
+    {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+    <div class="form-grid">
+      <div class="field field--wide">
+        <label for="title">Project Title</label>
+        <input type="text" id="title" name="title" value="{{ editing.title if editing else '' }}" required>
+      </div>
+      <div class="field">
+        <label for="student_id">Student</label>
+        <select id="student_id" name="student_id" required>
+          <option value="">Select a student</option>
+          {% for s in students %}
+          <option value="{{ s.id }}" {{ 'selected' if editing and editing.student_id == s.id }}>
+            {{ s.full_name }} ({{ s.index_number }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="supervisor_id">Supervisor</label>
+        <select id="supervisor_id" name="supervisor_id">
+          <option value="">— None —</option>
+          {% for sup in supervisors %}
+          <option value="{{ sup.id }}" {{ 'selected' if editing and editing.supervisor_id == sup.id }}>
+            {{ sup.full_name }} ({{ sup.staff_id }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="academic_year">Academic Year</label>
+        <input type="text" id="academic_year" name="academic_year" placeholder="e.g. 2025/2026"
+               value="{{ editing.academic_year if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% for opt in status_options %}
+          <option value="{{ opt }}" {{ 'selected' if editing and editing.status == opt }}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="proposal_date">Proposal Date</label>
+        <input type="date" id="proposal_date" name="proposal_date" value="{{ editing.proposal_date if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="submission_date">Submission Date</label>
+        <input type="date" id="submission_date" name="submission_date" value="{{ editing.submission_date if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="defense_date">Defense Date</label>
+        <input type="date" id="defense_date" name="defense_date" value="{{ editing.defense_date if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="grade">Grade</label>
+        <input type="text" id="grade" name="grade" value="{{ editing.grade if editing else '' }}">
+      </div>
+      <div class="field field--wide">
+        <label for="remarks">Remarks</label>
+        <input type="text" id="remarks" name="remarks" value="{{ editing.remarks if editing else '' }}">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Add Project' }}</button>
+      {% if editing %}<a href="{{ url_for('projects') }}" class="btn btn-secondary">Cancel</a>{% endif %}
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>All Projects ({{ projects|length }})</h2>
+
+  <form method="GET" action="{{ url_for('projects') }}" class="search-bar">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search by title, student, supervisor, or status">
+    <button type="submit" class="btn btn-secondary">Search</button>
+    {% if keyword %}<a href="{{ url_for('projects') }}" class="btn btn-secondary">Clear</a>{% endif %}
+  </form>
+
+  {% if projects %}
+  <div class="table-wrap">
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th>Title</th><th>Student</th><th>Supervisor</th><th>Year</th><th>Status</th>
+          <th>Proposal</th><th>Submitted</th><th>Defense</th><th>Grade</th><th>Remarks</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in projects %}
+        <tr>
+          <td>{{ p.title }}</td>
+          <td>{{ p.student_name }}<br><span class="tag">{{ p.index_number }}</span></td>
+          <td>{{ p.supervisor_name or '—' }}</td>
+          <td class="mono">{{ p.academic_year or '—' }}</td>
+          <td><span class="stamp stamp--{{ p.status|lower }}">{{ p.status }}</span></td>
+          <td class="mono">{{ p.proposal_date or '—' }}</td>
+          <td class="mono">{{ p.submission_date or '—' }}</td>
+          <td class="mono">{{ p.defense_date or '—' }}</td>
+          <td>{{ p.grade or '—' }}</td>
+          <td>{{ p.remarks or '—' }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('projects', edit=p.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+              <form method="POST" action="{{ url_for('delete_project', project_id=p.id) }}"
+                    onsubmit="return confirm('Delete this project record?');">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    {% if keyword %}No projects match "{{ keyword }}".{% else %}No projects have been filed yet.{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

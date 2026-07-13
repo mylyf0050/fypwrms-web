@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Students — FYPWRMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Students</h1>
+    <p>Register the students eligible for final year project supervision.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>{{ 'Edit Student' if editing else 'Add a Student' }}</h2>
+  <form method="POST" action="{{ url_for('students') }}">
+    {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+    <div class="form-grid">
+      <div class="field">
+        <label for="index_number">Index Number</label>
+        <input type="text" id="index_number" name="index_number" value="{{ editing.index_number if editing else '' }}" required>
+      </div>
+      <div class="field">
+        <label for="full_name">Full Name</label>
+        <input type="text" id="full_name" name="full_name" value="{{ editing.full_name if editing else '' }}" required>
+      </div>
+      <div class="field">
+        <label for="program">Program</label>
+        <input type="text" id="program" name="program" value="{{ editing.program if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="level">Level</label>
+        <input type="text" id="level" name="level" value="{{ editing.level if editing else '' }}" placeholder="e.g. 400">
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone" value="{{ editing.phone if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ editing.email if editing else '' }}">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Add Student' }}</button>
+      {% if editing %}<a href="{{ url_for('students') }}" class="btn btn-secondary">Cancel</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>All Students ({{ students|length }})</h2>
+  {% if students %}
+  <div class="table-wrap">
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th>Index Number</th><th>Full Name</th><th>Program</th><th>Level</th>
+          <th>Phone</th><th>Email</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td><span class="tag">{{ s.index_number }}</span></td>
+          <td>{{ s.full_name }}</td>
+          <td>{{ s.program or '—' }}</td>
+          <td>{{ s.level or '—' }}</td>
+          <td>{{ s.phone or '—' }}</td>
+          <td>{{ s.email or '—' }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('students', edit=s.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+              <form method="POST" action="{{ url_for('delete_student', student_id=s.id) }}"
+                    onsubmit="return confirm('Delete this student? Any linked project record will also be removed.');">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No students on file yet.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

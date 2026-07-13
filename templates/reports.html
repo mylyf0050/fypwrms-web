@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Reports — FYPWRMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Reports</h1>
+    <p>Export the current records to CSV for printing, backup, or handover.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Export Records</h2>
+
+  <div class="report-card">
+    <div>
+      <div class="report-card__title">Students</div>
+      <div class="report-card__desc">Index number, name, program, level, and contact details.</div>
+    </div>
+    <a href="{{ url_for('export_students') }}" class="btn btn-primary btn-sm">Download CSV</a>
+  </div>
+
+  <div class="report-card">
+    <div>
+      <div class="report-card__title">Supervisors</div>
+      <div class="report-card__desc">Staff ID, name, department, and contact details.</div>
+    </div>
+    <a href="{{ url_for('export_supervisors') }}" class="btn btn-primary btn-sm">Download CSV</a>
+  </div>
+
+  <div class="report-card">
+    <div>
+      <div class="report-card__title">Projects</div>
+      <div class="report-card__desc">Every project with its student, supervisor, status, dates, grade, and remarks.</div>
+    </div>
+    <a href="{{ url_for('export_projects') }}" class="btn btn-primary btn-sm">Download CSV</a>
+  </div>
+</div>
+
+{% endblock %}

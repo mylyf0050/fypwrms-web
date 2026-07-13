@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Supervisors — FYPWRMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Supervisors</h1>
+    <p>Register staff available to supervise final year projects.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>{{ 'Edit Supervisor' if editing else 'Add a Supervisor' }}</h2>
+  <form method="POST" action="{{ url_for('supervisors') }}">
+    {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+    <div class="form-grid">
+      <div class="field">
+        <label for="staff_id">Staff ID</label>
+        <input type="text" id="staff_id" name="staff_id" value="{{ editing.staff_id if editing else '' }}" required>
+      </div>
+      <div class="field">
+        <label for="full_name">Full Name</label>
+        <input type="text" id="full_name" name="full_name" value="{{ editing.full_name if editing else '' }}" required>
+      </div>
+      <div class="field">
+        <label for="department">Department</label>
+        <input type="text" id="department" name="department" value="{{ editing.department if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone" value="{{ editing.phone if editing else '' }}">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ editing.email if editing else '' }}">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Add Supervisor' }}</button>
+      {% if editing %}<a href="{{ url_for('supervisors') }}" class="btn btn-secondary">Cancel</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>All Supervisors ({{ supervisors|length }})</h2>
+  {% if supervisors %}
+  <div class="table-wrap">
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th>Staff ID</th><th>Full Name</th><th>Department</th>
+          <th>Phone</th><th>Email</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in supervisors %}
+        <tr>
+          <td><span class="tag">{{ s.staff_id }}</span></td>
+          <td>{{ s.full_name }}</td>
+          <td>{{ s.department or '—' }}</td>
+          <td>{{ s.phone or '—' }}</td>
+          <td>{{ s.email or '—' }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('supervisors', edit=s.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+              <form method="POST" action="{{ url_for('delete_supervisor', sup_id=s.id) }}"
+                    onsubmit="return confirm('Delete this supervisor? Assigned projects will keep their record but lose the supervisor link.');">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No supervisors on file yet.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

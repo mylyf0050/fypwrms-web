@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FYPWRMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>An at-a-glance view of everything on file.</p>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-card__label">Students</div>
+    <div class="stat-card__value">{{ counts.students }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Supervisors</div>
+    <div class="stat-card__value">{{ counts.supervisors }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Total Projects</div>
+    <div class="stat-card__value">{{ counts.projects }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Ongoing</div>
+    <div class="stat-card__value">{{ counts.ongoing }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Submitted</div>
+    <div class="stat-card__value">{{ counts.submitted }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Graded</div>
+    <div class="stat-card__value">{{ counts.graded }}</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Recently Filed Projects</h2>
+  {% if recent_projects %}
+  <div class="table-wrap">
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Student</th>
+          <th>Supervisor</th>
+          <th>Year</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_projects %}
+        <tr>
+          <td>{{ p.title }}</td>
+          <td>{{ p.student_name }} <span class="tag">{{ p.index_number }}</span></td>
+          <td>{{ p.supervisor_name or '—' }}</td>
+          <td class="mono">{{ p.academic_year or '—' }}</td>
+          <td><span class="stamp stamp--{{ p.status|lower }}">{{ p.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No projects have been filed yet. Add a student and a project to get started.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

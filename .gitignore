@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+fypwrms.db
+*.db
+.vscode/settings.json.bak
+*.log
+.env
