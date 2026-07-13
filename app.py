@@ -121,8 +121,12 @@ def logout():
 @login_required
 def dashboard():
     counts = db.get_dashboard_counts()
-    recent_projects = db.get_all_projects()[:5]
-    return render_template("dashboard.html", counts=counts, recent_projects=recent_projects)
+    keyword = request.args.get("q", "").strip()
+    if keyword:
+        recent_projects = db.search_projects(keyword)
+    else:
+        recent_projects = db.get_all_projects()[:5]
+    return render_template("dashboard.html", counts=counts, recent_projects=recent_projects, keyword=keyword)
 
 
 # ---------------- Students ----------------
@@ -130,10 +134,17 @@ def dashboard():
 @app.route("/students", methods=["GET", "POST"])
 @login_required
 def students():
-    editing_id = request.args.get("edit", type=int)
+    # Non-admins may view records, but never receive an edit target or a way to
+    # submit changes.
+    editing_id = request.args.get("edit", type=int) if session.get("role") == "admin" else None
     editing_student = db.get_student(editing_id) if editing_id else None
+    keyword = request.args.get("q", "").strip()
 
     if request.method == "POST":
+        if session.get("role") != "admin":
+            flash("Admin access required to add or edit students.", "error")
+            return redirect(url_for("students"))
+
         form_id = request.form.get("id", type=int)
         values = {
             "index_number": request.form.get("index_number", "").strip(),
@@ -158,7 +169,8 @@ def students():
             flash(f"Could not save student: {exc}", "error")
         return redirect(url_for("students"))
 
-    return render_template("students.html", students=db.get_all_students(), editing=editing_student)
+    students_list = db.search_students(keyword) if keyword else db.get_all_students()
+    return render_template("students.html", students=students_list, editing=editing_student, keyword=keyword)
 
 
 @app.route("/students/<int:student_id>/delete", methods=["POST"])
@@ -174,8 +186,9 @@ def delete_student(student_id):
 @app.route("/supervisors", methods=["GET", "POST"])
 @login_required
 def supervisors():
-    editing_id = request.args.get("edit", type=int)
+    editing_id = request.args.get("edit", type=int) if session.get("role") == "admin" else None
     editing_supervisor = db.get_supervisor(editing_id) if editing_id else None
+    keyword = request.args.get("q", "").strip()
 
     if request.method == "POST":
         if session.get("role") != "admin":
@@ -205,7 +218,8 @@ def supervisors():
             flash(f"Could not save supervisor: {exc}", "error")
         return redirect(url_for("supervisors"))
 
-    return render_template("supervisors.html", supervisors=db.get_all_supervisors(), editing=editing_supervisor)
+    supervisors_list = db.search_supervisors(keyword) if keyword else db.get_all_supervisors()
+    return render_template("supervisors.html", supervisors=supervisors_list, editing=editing_supervisor, keyword=keyword)
 
 
 @app.route("/supervisors/<int:sup_id>/delete", methods=["POST"])
@@ -221,7 +235,7 @@ def delete_supervisor(sup_id):
 @app.route("/projects", methods=["GET", "POST"])
 @login_required
 def projects():
-    editing_id = request.args.get("edit", type=int)
+    editing_id = request.args.get("edit", type=int) if session.get("role") == "admin" else None
     editing_project = db.get_project(editing_id) if editing_id else None
     keyword = request.args.get("q", "").strip()
 

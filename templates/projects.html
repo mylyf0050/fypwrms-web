@@ -91,9 +91,9 @@
   <h2>All Projects ({{ projects|length }})</h2>
 
   <form method="GET" action="{{ url_for('projects') }}" class="search-bar">
-    <input type="text" name="q" value="{{ keyword }}" placeholder="Search by title, student, supervisor, or status">
-    <button type="submit" class="btn btn-secondary">Search</button>
-    {% if keyword %}<a href="{{ url_for('projects') }}" class="btn btn-secondary">Clear</a>{% endif %}
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search by title, student, supervisor, or status" style="font-size: 16px; padding: 12px;">
+    <button type="submit" class="btn btn-primary" style="font-size: 16px; padding: 12px 24px;">Search</button>
+    {% if keyword %}<a href="{{ url_for('projects') }}" class="btn btn-secondary" style="font-size: 16px; padding: 12px 24px;">Clear</a>{% endif %}
   </form>
 
   {% if projects %}

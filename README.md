@@ -61,6 +61,17 @@ import database as db
 db.change_password("admin", "your_new_password")
 ```
 
+## Accounts and access
+
+Visitors can create an account from the **Sign up here** link and choose their
+own unique username. New accounts can log in and view records, but they cannot
+add, edit, or delete records. The `admin` account is the only account with
+those permissions.
+
+When the app starts, it automatically upgrades older local databases so that
+new accounts receive the normal-user role while the existing `admin` account
+keeps administrator access.
+
 ## Project structure
 
 ```

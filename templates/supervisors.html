@@ -46,6 +46,13 @@
 
 <div class="panel">
   <h2>All Supervisors ({{ supervisors|length }})</h2>
+
+  <form method="GET" action="{{ url_for('supervisors') }}" class="search-bar">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search by staff ID, name, or department">
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if keyword %}<a href="{{ url_for('supervisors') }}" class="btn btn-secondary">Clear</a>{% endif %}
+  </form>
+
   {% if supervisors %}
   <div class="table-wrap">
     <table class="ledger">
@@ -80,7 +87,9 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">No supervisors on file yet.</div>
+  <div class="empty-state">
+    {% if keyword %}No supervisors match "{{ keyword }}".{% else %}No supervisors on file yet.{% endif %}
+  </div>
   {% endif %}
 </div>
 

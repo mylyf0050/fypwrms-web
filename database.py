@@ -315,6 +315,24 @@ def get_all_supervisors():
     return rows
 
 
+def search_supervisors(keyword):
+    conn = get_connection()
+    if DATABASE_URL:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT * FROM supervisors WHERE staff_id ILIKE %s OR full_name ILIKE %s OR department ILIKE %s ORDER BY full_name",
+            (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%")
+        )
+        rows = cur.fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM supervisors WHERE staff_id LIKE ? OR full_name LIKE ? OR department LIKE ? ORDER BY full_name",
+            (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%")
+        ).fetchall()
+    conn.close()
+    return rows
+
+
 # ---------- Students ----------
 
 def add_student(index_number, full_name, program, level, phone, email):
@@ -386,6 +404,24 @@ def get_all_students():
         rows = cur.fetchall()
     else:
         rows = conn.execute("SELECT * FROM students ORDER BY full_name").fetchall()
+    conn.close()
+    return rows
+
+
+def search_students(keyword):
+    conn = get_connection()
+    if DATABASE_URL:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT * FROM students WHERE index_number ILIKE %s OR full_name ILIKE %s OR program ILIKE %s OR level ILIKE %s ORDER BY full_name",
+            (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%", f"%{keyword}%")
+        )
+        rows = cur.fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM students WHERE index_number LIKE ? OR full_name LIKE ? OR program LIKE ? OR level LIKE ? ORDER BY full_name",
+            (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%", f"%{keyword}%")
+        ).fetchall()
     conn.close()
     return rows
 

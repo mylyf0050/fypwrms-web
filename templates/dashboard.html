@@ -37,7 +37,14 @@
 </div>
 
 <div class="panel">
-  <h2>Recently Filed Projects</h2>
+  <h2>{{ 'Search Results' if keyword else 'Recently Filed Projects' }}</h2>
+  
+  <form method="GET" action="{{ url_for('dashboard') }}" class="search-bar">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search projects by title, student, supervisor, or status">
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if keyword %}<a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Clear</a>{% endif %}
+  </form>
+
   {% if recent_projects %}
   <div class="table-wrap">
     <table class="ledger">
@@ -64,7 +71,9 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">No projects have been filed yet. Add a student and a project to get started.</div>
+  <div class="empty-state">
+    {% if keyword %}No projects match "{{ keyword }}".{% else %}No projects have been filed yet. Add a student and a project to get started.{% endif %}
+  </div>
   {% endif %}
 </div>
 

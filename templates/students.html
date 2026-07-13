@@ -50,6 +50,13 @@
 
 <div class="panel">
   <h2>All Students ({{ students|length }})</h2>
+
+  <form method="GET" action="{{ url_for('students') }}" class="search-bar">
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search by index number, name, program, or level">
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if keyword %}<a href="{{ url_for('students') }}" class="btn btn-secondary">Clear</a>{% endif %}
+  </form>
+
   {% if students %}
   <div class="table-wrap">
     <table class="ledger">
@@ -85,7 +92,9 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">No students on file yet.</div>
+  <div class="empty-state">
+    {% if keyword %}No students match "{{ keyword }}".{% else %}No students on file yet.{% endif %}
+  </div>
   {% endif %}
 </div>
 
