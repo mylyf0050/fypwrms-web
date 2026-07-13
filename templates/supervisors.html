@@ -9,6 +9,7 @@
   </div>
 </div>
 
+{% if current_role == 'admin' %}
 <div class="panel">
   <h2>{{ 'Edit Supervisor' if editing else 'Add a Supervisor' }}</h2>
   <form method="POST" action="{{ url_for('supervisors') }}">
@@ -41,6 +42,7 @@
     </div>
   </form>
 </div>
+{% endif %}
 
 <div class="panel">
   <h2>All Supervisors ({{ supervisors|length }})</h2>
@@ -62,6 +64,7 @@
           <td>{{ s.phone or '—' }}</td>
           <td>{{ s.email or '—' }}</td>
           <td>
+            {% if current_role == 'admin' %}
             <div class="row-actions">
               <a href="{{ url_for('supervisors', edit=s.id) }}" class="btn btn-secondary btn-sm">Edit</a>
               <form method="POST" action="{{ url_for('delete_supervisor', sup_id=s.id) }}"
@@ -69,6 +72,7 @@
                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
               </form>
             </div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

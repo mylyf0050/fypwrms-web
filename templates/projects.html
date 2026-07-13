@@ -9,6 +9,7 @@
   </div>
 </div>
 
+{% if current_role == 'admin' %}
 <div class="panel">
   <h2>{{ 'Edit Project' if editing else 'Add a Project' }}</h2>
   {% if not students %}
@@ -84,6 +85,7 @@
   </form>
   {% endif %}
 </div>
+{% endif %}
 
 <div class="panel">
   <h2>All Projects ({{ projects|length }})</h2>
@@ -117,6 +119,7 @@
           <td>{{ p.grade or '—' }}</td>
           <td>{{ p.remarks or '—' }}</td>
           <td>
+            {% if current_role == 'admin' %}
             <div class="row-actions">
               <a href="{{ url_for('projects', edit=p.id) }}" class="btn btn-secondary btn-sm">Edit</a>
               <form method="POST" action="{{ url_for('delete_project', project_id=p.id) }}"
@@ -124,6 +127,7 @@
                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
               </form>
             </div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

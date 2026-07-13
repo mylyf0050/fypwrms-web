@@ -37,9 +37,26 @@ def login_required(view):
     return wrapped
 
 
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("username"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        if session.get("role") != "admin":
+            flash("Admin access required.", "error")
+            return redirect(url_for("dashboard"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
 @app.context_processor
 def inject_globals():
-    return {"current_user": session.get("username"), "status_options": STATUS_OPTIONS}
+    return {
+        "current_user": session.get("username"),
+        "current_role": session.get("role"),
+        "status_options": STATUS_OPTIONS
+    }
 
 
 # ---------------- Auth ----------------
@@ -56,6 +73,7 @@ def login():
             flash("Enter both username and password.", "error")
         elif db.verify_login(username, password):
             session["username"] = username
+            session["role"] = db.get_user_role(username)
             return redirect(url_for("dashboard"))
         else:
             flash("Incorrect username or password.", "error")
@@ -144,7 +162,7 @@ def students():
 
 
 @app.route("/students/<int:student_id>/delete", methods=["POST"])
-@login_required
+@admin_required
 def delete_student(student_id):
     db.delete_student(student_id)
     flash("Student and any linked project records were removed.", "success")
@@ -160,6 +178,10 @@ def supervisors():
     editing_supervisor = db.get_supervisor(editing_id) if editing_id else None
 
     if request.method == "POST":
+        if session.get("role") != "admin":
+            flash("Admin access required to add or edit supervisors.", "error")
+            return redirect(url_for("supervisors"))
+        
         form_id = request.form.get("id", type=int)
         values = {
             "staff_id": request.form.get("staff_id", "").strip(),
@@ -187,7 +209,7 @@ def supervisors():
 
 
 @app.route("/supervisors/<int:sup_id>/delete", methods=["POST"])
-@login_required
+@admin_required
 def delete_supervisor(sup_id):
     db.delete_supervisor(sup_id)
     flash("Supervisor removed. Any assigned projects now show no supervisor.", "success")
@@ -204,6 +226,10 @@ def projects():
     keyword = request.args.get("q", "").strip()
 
     if request.method == "POST":
+        if session.get("role") != "admin":
+            flash("Admin access required to add or edit projects.", "error")
+            return redirect(url_for("projects"))
+        
         form_id = request.form.get("id", type=int)
         student_id = request.form.get("student_id", type=int)
         supervisor_id = request.form.get("supervisor_id", type=int) or None
@@ -246,7 +272,7 @@ def projects():
 
 
 @app.route("/projects/<int:project_id>/delete", methods=["POST"])
-@login_required
+@admin_required
 def delete_project(project_id):
     db.delete_project(project_id)
     flash("Project record removed.", "success")

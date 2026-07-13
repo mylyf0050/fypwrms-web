@@ -44,7 +44,8 @@ def initialize_database():
             CREATE TABLE IF NOT EXISTS admins (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'user'
             )
         """)
 
@@ -94,7 +95,8 @@ def initialize_database():
             CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'user'
             )
         """)
 
@@ -146,16 +148,16 @@ def initialize_database():
     if DATABASE_URL:
         try:
             cur.execute(
-                "INSERT INTO admins (username, password_hash) VALUES (%s, %s) ON CONFLICT (username) DO NOTHING",
-                ("admin", hash_password("admin123")),
+                "INSERT INTO admins (username, password_hash, role) VALUES (%s, %s, %s) ON CONFLICT (username) DO NOTHING",
+                ("admin", hash_password("admin123"), "admin"),
             )
         except Exception:
             pass  # Admin user might already exist
     else:
         try:
             cur.execute(
-                "INSERT OR IGNORE INTO admins (username, password_hash) VALUES (?, ?)",
-                ("admin", hash_password("admin123")),
+                "INSERT OR IGNORE INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
+                ("admin", hash_password("admin123"), "admin"),
             )
             conn.commit()
         except Exception:
@@ -208,13 +210,13 @@ def register_user(username: str, password: str) -> bool:
         if DATABASE_URL:
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO admins (username, password_hash) VALUES (%s, %s)",
-                (username, hash_password(password)),
+                "INSERT INTO admins (username, password_hash, role) VALUES (%s, %s, %s)",
+                (username, hash_password(password), "user"),
             )
         else:
             conn.execute(
-                "INSERT INTO admins (username, password_hash) VALUES (?, ?)",
-                (username, hash_password(password)),
+                "INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
+                (username, hash_password(password), "user"),
             )
             conn.commit()
         conn.close()
@@ -222,6 +224,21 @@ def register_user(username: str, password: str) -> bool:
     except Exception:
         conn.close()
         return False
+
+
+def get_user_role(username: str) -> str:
+    """Get the role of a user. Returns 'user' if not found."""
+    conn = get_connection()
+    if DATABASE_URL:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT role FROM admins WHERE username = %s", (username,))
+        row = cur.fetchone()
+        conn.close()
+        return row["role"] if row else "user"
+    else:
+        row = conn.execute("SELECT role FROM admins WHERE username = ?", (username,)).fetchone()
+        conn.close()
+        return row["role"] if row else "user"
 
 
 # ---------- Supervisors ----------
