@@ -162,6 +162,24 @@ def initialize_database():
         cur.execute("UPDATE admins SET role = ? WHERE username = ?", ("admin", "admin"))
         conn.commit()
 
+    # Optional one-time Render bootstrap: promote an existing account by username.
+    bootstrap_admin_username = os.environ.get("BOOTSTRAP_ADMIN_USERNAME", "").strip()
+    if bootstrap_admin_username:
+        if DATABASE_URL:
+            cur.execute(
+                "UPDATE admins SET role = 'admin' WHERE username = %s",
+                (bootstrap_admin_username,),
+            )
+        else:
+            cur.execute(
+                "UPDATE admins SET role = ? WHERE username = ?",
+                ("admin", bootstrap_admin_username),
+            )
+            conn.commit()
+        if cur.rowcount == 0:
+            conn.close()
+            raise RuntimeError("BOOTSTRAP_ADMIN_USERNAME does not match an existing account")
+
     conn.close()
 
 
