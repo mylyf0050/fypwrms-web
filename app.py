@@ -100,8 +100,10 @@ def register():
         elif password != confirm_password:
             flash("Passwords do not match.", "error")
         elif db.register_user(username, password):
-            flash("Account created successfully! Please log in.", "success")
-            return redirect(url_for("login"))
+            session["username"] = username
+            session["role"] = db.get_user_role(username)
+            flash("Account created successfully!", "success")
+            return redirect(url_for("dashboard"))
         else:
             flash("Username already exists. Please choose another.", "error")
 
