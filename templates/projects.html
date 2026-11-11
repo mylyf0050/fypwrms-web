@@ -15,6 +15,8 @@
   {% if not students %}
     <p class="empty-state">Add at least one student before creating a project. <a href="{{ url_for('students') }}" style="color:var(--navy); font-weight:600;">Go to Students &rarr;</a></p>
   {% else %}
+  {% set selected_student_ids = editing.student_ids if editing else [] %}
+  {% set selected_student_count = selected_student_ids|length if editing else 1 %}
   <form method="POST" action="{{ url_for('projects') }}">
     {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
     <div class="form-grid">
@@ -23,16 +25,28 @@
         <input type="text" id="title" name="title" value="{{ editing.title if editing else '' }}" required>
       </div>
       <div class="field">
-        <label for="student_id">Student</label>
-        <select id="student_id" name="student_id" required>
+        <label for="student_count">Number of Students</label>
+        <select id="student_count" name="student_count" required>
+          <option value="1" {{ 'selected' if selected_student_count == 1 }}>Individual (1 student)</option>
+          <option value="2" {{ 'selected' if selected_student_count == 2 }}>Pair (2 students)</option>
+          <option value="3" {{ 'selected' if selected_student_count == 3 }}>Group of 3</option>
+        </select>
+      </div>
+      {% for member_index in range(1, 4) %}
+      <div class="field student-member" data-member-index="{{ member_index }}"
+           {% if member_index > selected_student_count %}hidden{% endif %}>
+        <label for="student_id_{{ member_index }}">Student {{ member_index }}</label>
+        <select id="student_id_{{ member_index }}" name="student_ids"
+                {% if member_index <= selected_student_count %}required{% endif %}>
           <option value="">Select a student</option>
           {% for s in students %}
-          <option value="{{ s.id }}" {{ 'selected' if editing and editing.student_id == s.id }}>
+          <option value="{{ s.id }}" {{ 'selected' if selected_student_ids|length >= member_index and selected_student_ids[member_index - 1] == s.id }}>
             {{ s.full_name }} ({{ s.index_number }})
           </option>
           {% endfor %}
         </select>
       </div>
+      {% endfor %}
       <div class="field">
         <label for="supervisor_id">Supervisor</label>
         <select id="supervisor_id" name="supervisor_id">
@@ -101,7 +115,7 @@
     <table class="ledger">
       <thead>
         <tr>
-          <th>Title</th><th>Student</th><th>Supervisor</th><th>Year</th><th>Status</th>
+          <th>Title</th><th>Team Members</th><th>Group Size</th><th>Supervisor</th><th>Year</th><th>Status</th>
           <th>Proposal</th><th>Submitted</th><th>Defense</th><th>Grade</th><th>Remarks</th><th></th>
         </tr>
       </thead>
@@ -109,7 +123,16 @@
         {% for p in projects %}
         <tr>
           <td>{{ p.title }}</td>
-          <td>{{ p.student_name }}<br><span class="tag">{{ p.index_number }}</span></td>
+          <td>
+            {% for member in p.students %}
+            <div>{{ member.full_name }} <span class="tag">{{ member.index_number }}</span></div>
+            {% endfor %}
+          </td>
+          <td>
+            {% if p.student_count == 1 %}Individual
+            {% elif p.student_count == 2 %}Pair
+            {% else %}Group of {{ p.student_count }}{% endif %}
+          </td>
           <td>{{ p.supervisor_name or '—' }}</td>
           <td class="mono">{{ p.academic_year or '—' }}</td>
           <td><span class="stamp stamp--{{ p.status|lower }}">{{ p.status }}</span></td>
@@ -141,4 +164,22 @@
   {% endif %}
 </div>
 
+<script>
+  const studentCountSelect = document.getElementById("student_count");
+  if (studentCountSelect) {
+    const memberFields = document.querySelectorAll(".student-member");
+    const syncStudentFields = () => {
+      const count = Number(studentCountSelect.value);
+      memberFields.forEach((field) => {
+        const visible = Number(field.dataset.memberIndex) <= count;
+        const select = field.querySelector("select");
+        field.hidden = !visible;
+        select.required = visible;
+        if (!visible) select.value = "";
+      });
+    };
+    studentCountSelect.addEventListener("change", syncStudentFields);
+    syncStudentFields();
+  }
+</script>
 {% endblock %}

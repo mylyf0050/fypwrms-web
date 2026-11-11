@@ -247,11 +247,12 @@ def projects():
             return redirect(url_for("projects"))
         
         form_id = request.form.get("id", type=int)
-        student_id = request.form.get("student_id", type=int)
+        student_count = request.form.get("student_count", type=int)
+        student_ids = request.form.getlist("student_ids", type=int)
         supervisor_id = request.form.get("supervisor_id", type=int) or None
         values = {
             "title": request.form.get("title", "").strip(),
-            "student_id": student_id,
+            "student_ids": student_ids,
             "supervisor_id": supervisor_id,
             "academic_year": request.form.get("academic_year", "").strip(),
             "status": request.form.get("status", STATUS_OPTIONS[0]),
@@ -261,8 +262,14 @@ def projects():
             "grade": request.form.get("grade", "").strip() or None,
             "remarks": request.form.get("remarks", "").strip() or None,
         }
-        if not values["title"] or not values["student_id"]:
-            flash("Project title and student are required.", "error")
+        if not values["title"]:
+            flash("Project title is required.", "error")
+            return redirect(url_for("projects", edit=form_id) if form_id else url_for("projects"))
+        if student_count not in (1, 2, 3):
+            flash("Choose whether the project has 1, 2, or 3 students.", "error")
+            return redirect(url_for("projects", edit=form_id) if form_id else url_for("projects"))
+        if len(student_ids) != student_count or len(set(student_ids)) != student_count:
+            flash(f"Select {student_count} different student(s) for this project.", "error")
             return redirect(url_for("projects", edit=form_id) if form_id else url_for("projects"))
 
         try:
@@ -336,11 +343,13 @@ def export_supervisors():
 @app.route("/reports/projects.csv")
 @login_required
 def export_projects():
-    header = ["Title", "Student", "Index Number", "Supervisor", "Academic Year",
-              "Status", "Proposal Date", "Submission Date", "Defense Date", "Grade", "Remarks"]
-    rows = [[p["title"], p["student_name"], p["index_number"], p["supervisor_name"],
-             p["academic_year"], p["status"], p["proposal_date"], p["submission_date"],
-             p["defense_date"], p["grade"], p["remarks"]] for p in db.get_all_projects()]
+    header = ["Title", "Team Members", "Student Index Numbers", "Group Size",
+              "Supervisor", "Academic Year", "Status", "Proposal Date",
+              "Submission Date", "Defense Date", "Grade", "Remarks"]
+    rows = [[p["title"], p["student_names"], p["student_index_numbers"], p["student_count"],
+             p["supervisor_name"], p["academic_year"], p["status"], p["proposal_date"],
+             p["submission_date"], p["defense_date"], p["grade"], p["remarks"]]
+            for p in db.get_all_projects()]
     return _csv_response("projects.csv", header, rows)
 
 

@@ -141,6 +141,44 @@ def initialize_database():
             )
         """)
 
+    if DATABASE_URL:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS project_students (
+                project_id INTEGER NOT NULL,
+                student_id INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (project_id, student_id),
+                UNIQUE (project_id, position),
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+                FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("""
+            INSERT INTO project_students (project_id, student_id, position)
+            SELECT p.id, p.student_id, 1 FROM projects p
+            WHERE NOT EXISTS (
+                SELECT 1 FROM project_students ps
+                WHERE ps.project_id = p.id AND ps.student_id = p.student_id
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS project_students (
+                project_id INTEGER NOT NULL,
+                student_id INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (project_id, student_id),
+                UNIQUE (project_id, position),
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+                FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("""
+            INSERT OR IGNORE INTO project_students (project_id, student_id, position)
+            SELECT id, student_id, 1 FROM projects
+        """)
+        conn.commit()
+
     if not DATABASE_URL:
         conn.commit()
 
@@ -395,8 +433,48 @@ def delete_student(student_id):
     conn = get_connection()
     if DATABASE_URL:
         cur = conn.cursor()
+        cur.execute(
+            """SELECT id FROM projects
+               WHERE student_id = %s
+                 AND EXISTS (
+                     SELECT 1 FROM project_students ps
+                     WHERE ps.project_id = projects.id AND ps.student_id <> %s
+                 )""",
+            (student_id, student_id),
+        )
+        project_ids = [row[0] for row in cur.fetchall()]
+        for project_id in project_ids:
+            cur.execute(
+                """SELECT student_id FROM project_students
+                   WHERE project_id = %s AND student_id <> %s
+                   ORDER BY position LIMIT 1""",
+                (project_id, student_id),
+            )
+            replacement = cur.fetchone()
+            if replacement:
+                cur.execute("UPDATE projects SET student_id = %s WHERE id = %s",
+                            (replacement[0], project_id))
         cur.execute("DELETE FROM students WHERE id=%s", (student_id,))
     else:
+        project_ids = conn.execute(
+            """SELECT id FROM projects
+               WHERE student_id = ?
+                 AND EXISTS (
+                     SELECT 1 FROM project_students ps
+                     WHERE ps.project_id = projects.id AND ps.student_id <> ?
+                 )""",
+            (student_id, student_id),
+        ).fetchall()
+        for row in project_ids:
+            replacement = conn.execute(
+                """SELECT student_id FROM project_students
+                   WHERE project_id = ? AND student_id <> ?
+                   ORDER BY position LIMIT 1""",
+                (row["id"], student_id),
+            ).fetchone()
+            if replacement:
+                conn.execute("UPDATE projects SET student_id = ? WHERE id = ?",
+                             (replacement["student_id"], row["id"]))
         conn.execute("DELETE FROM students WHERE id=?", (student_id,))
         conn.commit()
     conn.close()
@@ -446,42 +524,70 @@ def search_students(keyword):
 
 # ---------- Projects ----------
 
-def add_project(title, student_id, supervisor_id, academic_year, status,
+def _replace_project_students(conn, project_id, student_ids):
+    if DATABASE_URL:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM project_students WHERE project_id = %s", (project_id,))
+        cur.executemany(
+            "INSERT INTO project_students (project_id, student_id, position) VALUES (%s, %s, %s)",
+            [(project_id, sid, pos) for pos, sid in enumerate(student_ids, 1)],
+        )
+    else:
+        conn.execute("DELETE FROM project_students WHERE project_id = ?", (project_id,))
+        conn.executemany(
+            "INSERT INTO project_students (project_id, student_id, position) VALUES (?, ?, ?)",
+            [(project_id, sid, pos) for pos, sid in enumerate(student_ids, 1)],
+        )
+
+
+def add_project(title, student_ids, supervisor_id, academic_year, status,
                  proposal_date, submission_date, defense_date, grade, remarks):
+    student_ids = list(dict.fromkeys(student_ids or []))
+    if not student_ids:
+        raise ValueError("Select at least one student for the project.")
     conn = get_connection()
+    primary_student_id = student_ids[0]
     if DATABASE_URL:
         cur = conn.cursor()
         cur.execute(
             """INSERT INTO projects
                (title, student_id, supervisor_id, academic_year, status,
                 proposal_date, submission_date, defense_date, grade, remarks)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (title, student_id, supervisor_id, academic_year, status,
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+            (title, primary_student_id, supervisor_id, academic_year, status,
              proposal_date, submission_date, defense_date, grade, remarks),
         )
+        project_id = cur.fetchone()[0]
     else:
-        conn.execute(
+        cur = conn.execute(
             """INSERT INTO projects
                (title, student_id, supervisor_id, academic_year, status,
                 proposal_date, submission_date, defense_date, grade, remarks)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (title, student_id, supervisor_id, academic_year, status,
+            (title, primary_student_id, supervisor_id, academic_year, status,
              proposal_date, submission_date, defense_date, grade, remarks),
         )
+        project_id = cur.lastrowid
+    _replace_project_students(conn, project_id, student_ids)
+    if not DATABASE_URL:
         conn.commit()
     conn.close()
 
 
-def update_project(project_id, title, student_id, supervisor_id, academic_year,
+def update_project(project_id, title, student_ids, supervisor_id, academic_year,
                     status, proposal_date, submission_date, defense_date, grade, remarks):
+    student_ids = list(dict.fromkeys(student_ids or []))
+    if not student_ids:
+        raise ValueError("Select at least one student for the project.")
     conn = get_connection()
+    primary_student_id = student_ids[0]
     if DATABASE_URL:
         cur = conn.cursor()
         cur.execute(
             """UPDATE projects SET title=%s, student_id=%s, supervisor_id=%s, academic_year=%s,
                status=%s, proposal_date=%s, submission_date=%s, defense_date=%s, grade=%s, remarks=%s
                WHERE id=%s""",
-            (title, student_id, supervisor_id, academic_year, status, proposal_date,
+            (title, primary_student_id, supervisor_id, academic_year, status, proposal_date,
              submission_date, defense_date, grade, remarks, project_id),
         )
     else:
@@ -489,9 +595,11 @@ def update_project(project_id, title, student_id, supervisor_id, academic_year,
             """UPDATE projects SET title=?, student_id=?, supervisor_id=?, academic_year=?,
                status=?, proposal_date=?, submission_date=?, defense_date=?, grade=?, remarks=?
                WHERE id=?""",
-            (title, student_id, supervisor_id, academic_year, status, proposal_date,
+            (title, primary_student_id, supervisor_id, academic_year, status, proposal_date,
              submission_date, defense_date, grade, remarks, project_id),
         )
+    _replace_project_students(conn, project_id, student_ids)
+    if not DATABASE_URL:
         conn.commit()
     conn.close()
 
@@ -507,6 +615,46 @@ def delete_project(project_id):
     conn.close()
 
 
+def _attach_project_students(conn, rows):
+    if not rows:
+        return []
+    project_ids = [row["id"] for row in rows]
+    if DATABASE_URL:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT ps.project_id, s.id, s.full_name, s.index_number
+            FROM project_students ps JOIN students s ON s.id = ps.student_id
+            WHERE ps.project_id = ANY(%s)
+            ORDER BY ps.project_id, ps.position
+        """, (project_ids,))
+        member_rows = cur.fetchall()
+    else:
+        marks = ",".join("?" for _ in project_ids)
+        member_rows = conn.execute(
+            f"""SELECT ps.project_id, s.id, s.full_name, s.index_number
+                FROM project_students ps JOIN students s ON s.id = ps.student_id
+                WHERE ps.project_id IN ({marks}) ORDER BY ps.project_id, ps.position""",
+            project_ids,
+        ).fetchall()
+    grouped = {}
+    for member in member_rows:
+        grouped.setdefault(member["project_id"], []).append({
+            "id": member["id"], "full_name": member["full_name"],
+            "index_number": member["index_number"],
+        })
+    result = []
+    for row in rows:
+        project = dict(row)
+        members = grouped.get(project["id"], [])
+        project["students"] = members
+        project["student_ids"] = [m["id"] for m in members]
+        project["student_names"] = ", ".join(m["full_name"] for m in members)
+        project["student_index_numbers"] = ", ".join(m["index_number"] for m in members)
+        project["student_count"] = len(members)
+        result.append(project)
+    return result
+
+
 def get_project(project_id):
     conn = get_connection()
     if DATABASE_URL:
@@ -515,36 +663,28 @@ def get_project(project_id):
         row = cur.fetchone()
     else:
         row = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+    rows = _attach_project_students(conn, [row]) if row else []
     conn.close()
-    return row
+    return rows[0] if rows else None
 
 
 def get_all_projects():
     conn = get_connection()
     if DATABASE_URL:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT p.id, p.title, s.full_name AS student_name, s.index_number,
-                   sup.full_name AS supervisor_name, p.academic_year, p.status,
-                   p.proposal_date, p.submission_date, p.defense_date, p.grade, p.remarks,
-                   p.student_id, p.supervisor_id
-            FROM projects p
-            JOIN students s ON p.student_id = s.id
-            LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
-            ORDER BY p.academic_year DESC, s.full_name
-        """)
+        cur.execute("""SELECT p.id, p.title, sup.full_name AS supervisor_name,
+                   p.academic_year, p.status, p.proposal_date, p.submission_date,
+                   p.defense_date, p.grade, p.remarks, p.student_id, p.supervisor_id
+                   FROM projects p LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
+                   ORDER BY p.academic_year DESC, p.title""")
         rows = cur.fetchall()
     else:
-        rows = conn.execute("""
-            SELECT p.id, p.title, s.full_name AS student_name, s.index_number,
-                   sup.full_name AS supervisor_name, p.academic_year, p.status,
-                   p.proposal_date, p.submission_date, p.defense_date, p.grade, p.remarks,
-                   p.student_id, p.supervisor_id
-            FROM projects p
-            JOIN students s ON p.student_id = s.id
-            LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
-            ORDER BY p.academic_year DESC, s.full_name
-        """).fetchall()
+        rows = conn.execute("""SELECT p.id, p.title, sup.full_name AS supervisor_name,
+                   p.academic_year, p.status, p.proposal_date, p.submission_date,
+                   p.defense_date, p.grade, p.remarks, p.student_id, p.supervisor_id
+                   FROM projects p LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
+                   ORDER BY p.academic_year DESC, p.title""").fetchall()
+    rows = _attach_project_students(conn, rows)
     conn.close()
     return rows
 
@@ -554,32 +694,25 @@ def search_projects(keyword):
     like = f"%{keyword}%"
     if DATABASE_URL:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT p.id, p.title, s.full_name AS student_name, s.index_number,
-                   sup.full_name AS supervisor_name, p.academic_year, p.status,
-                   p.proposal_date, p.submission_date, p.defense_date, p.grade, p.remarks,
-                   p.student_id, p.supervisor_id
-            FROM projects p
-            JOIN students s ON p.student_id = s.id
-            LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
-            WHERE p.title LIKE %s OR s.full_name LIKE %s OR s.index_number LIKE %s
-               OR sup.full_name LIKE %s OR p.status LIKE %s
-            ORDER BY s.full_name
-        """, (like, like, like, like, like))
+        cur.execute("""SELECT p.id, p.title, sup.full_name AS supervisor_name,
+                   p.academic_year, p.status, p.proposal_date, p.submission_date,
+                   p.defense_date, p.grade, p.remarks, p.student_id, p.supervisor_id
+                   FROM projects p LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
+                   WHERE p.title ILIKE %s OR p.status ILIKE %s OR sup.full_name ILIKE %s
+                     OR EXISTS (SELECT 1 FROM project_students ps JOIN students s ON s.id=ps.student_id
+                                WHERE ps.project_id=p.id AND (s.full_name ILIKE %s OR s.index_number ILIKE %s))
+                   ORDER BY p.academic_year DESC, p.title""", (like, like, like, like, like))
         rows = cur.fetchall()
     else:
-        rows = conn.execute("""
-            SELECT p.id, p.title, s.full_name AS student_name, s.index_number,
-                   sup.full_name AS supervisor_name, p.academic_year, p.status,
-                   p.proposal_date, p.submission_date, p.defense_date, p.grade, p.remarks,
-                   p.student_id, p.supervisor_id
-            FROM projects p
-            JOIN students s ON p.student_id = s.id
-            LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
-            WHERE p.title LIKE ? OR s.full_name LIKE ? OR s.index_number LIKE ?
-               OR sup.full_name LIKE ? OR p.status LIKE ?
-            ORDER BY s.full_name
-        """, (like, like, like, like, like)).fetchall()
+        rows = conn.execute("""SELECT p.id, p.title, sup.full_name AS supervisor_name,
+                   p.academic_year, p.status, p.proposal_date, p.submission_date,
+                   p.defense_date, p.grade, p.remarks, p.student_id, p.supervisor_id
+                   FROM projects p LEFT JOIN supervisors sup ON p.supervisor_id = sup.id
+                   WHERE p.title LIKE ? OR p.status LIKE ? OR sup.full_name LIKE ?
+                     OR EXISTS (SELECT 1 FROM project_students ps JOIN students s ON s.id=ps.student_id
+                                WHERE ps.project_id=p.id AND (s.full_name LIKE ? OR s.index_number LIKE ?))
+                   ORDER BY p.academic_year DESC, p.title""", (like, like, like, like, like)).fetchall()
+    rows = _attach_project_students(conn, rows)
     conn.close()
     return rows
 
